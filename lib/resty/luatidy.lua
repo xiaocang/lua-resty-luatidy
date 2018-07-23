@@ -206,9 +206,9 @@ local function pretty(code, print_flag)
     end
 
     return {
-        tidycode = concat(tidycode, "\n"),
+        tidycode = table.concat(tidycode, "\n"),
         tidycode_len = tidycode_len,
-        warning = concat(warning, "\n"),
+        warning = table.concat(warning, "\n"),
         warning_len = warning_len
     }
 end
