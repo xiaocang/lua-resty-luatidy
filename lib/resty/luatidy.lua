@@ -41,9 +41,13 @@ local function pretty(code, print_flag)
 
     local currIndent, nextIndent, prevLength = 0, 0, 0
 
+    if not code then
+        return nil, "empty code"
+    end
+
     local code_by_line, err = ngx.re.gmatch(code, [=[([^\r\n]+\r?\n)]=], "jo")
     if not code_by_line then
-        return nil, err
+        return
     end
 
     local ix = 0
@@ -100,6 +104,10 @@ local function pretty(code, print_flag)
 
             open_level_flag = open_level_flag
                 or ngx.re.match(l, [=[\bfunction\s*\([^\)]*\)$]=], "jio")
+
+            open_level_flag = open_level_flag
+                or ngx.re.match(l, [[\bdo\b]], "jio")
+                and not ngx.re.match(l, [[\bend$]], "jio")
         end
 
         -- close the level; change both current and next indentation
@@ -205,19 +213,16 @@ local function pretty(code, print_flag)
         end
     end
 
-    return {
-        tidycode = table.concat(tidycode, "\n"),
-        tidycode_len = tidycode_len,
-        warning = table.concat(warning, "\n"),
-        warning_len = warning_len
-    }
+    return table.concat(tidycode, "\n"), table.concat(warning, "\n")
 end
+
 _M.pretty = pretty
 
 -- call from command line
 do
-    local narg = #arg
-    if narg > 0 then
+    -- When called from the command line, debug.getinfo(3).name is nil
+    if not debug.getinfo(3).name then
+        local narg = #arg
         local filename = arg[1]
         local fh = io.open(filename, "r")
         io.input(fh)
