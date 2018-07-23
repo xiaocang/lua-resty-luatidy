@@ -94,7 +94,7 @@ local function pretty(code, print_flag)
             -- only open on 'then' if there is no 'elseif'
             open_level_flag = open_level_flag
                 or ngx.re.match(l, [=[\b(then|do)$]=], "jio")
-                and ngx.re.match(l, [=[^elseif\b]=], "jio")
+                and not ngx.re.match(l, [=[^elseif\b]=], "jio")
 
             -- only open on 'if' if there is no 'end' at the end
             open_level_flag = open_level_flag
@@ -104,10 +104,6 @@ local function pretty(code, print_flag)
 
             open_level_flag = open_level_flag
                 or ngx.re.match(l, [=[\bfunction\s*\([^\)]*\)$]=], "jio")
-
-            open_level_flag = open_level_flag
-                or ngx.re.match(l, [[\bdo\b]], "jio")
-                and not ngx.re.match(l, [[\bend$]], "jio")
         end
 
         -- close the level; change both current and next indentation
@@ -221,7 +217,7 @@ _M.pretty = pretty
 -- call from command line
 do
     -- When called from the command line, debug.getinfo(3).name is nil
-    if not debug.getinfo(3).name then
+    if not debug.getinfo(4).name then
         local narg = #arg
         local filename = arg[1]
         local fh = io.open(filename, "r")
