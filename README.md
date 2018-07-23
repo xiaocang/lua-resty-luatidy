@@ -12,5 +12,5 @@ resty luatidy.lua <filename>
 
 ```
 local tidy = require "resty.luatidy"
-tidy.pretty(code)
+local prettycode, err = tidy.pretty(code)
 ```
