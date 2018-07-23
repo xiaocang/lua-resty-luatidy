@@ -7,7 +7,8 @@ use for create pretty lua code
 
 local _M = { _VERSION = 0.1 }
 
-local INDENT = '    ' -- space x 4
+local INDENT = string.rep(' ', 4)
+INDENT = '    '
 
 -- remove useless \r\n
 local function chomp(l)
@@ -19,20 +20,43 @@ local function chomp(l)
     return nl or l
 end
 
+local function isstr(s)
+    local isstr_flag = ngx.re.match(s, [=[^"]=])
+        and ngx.re.match(s, [=["$]=])
+
+    isstr_flag = ngx.re.match(s, [=[^\[]=])
+        and ngx.re.match(s, [=[\]$]=])
+
+    if isstr_flag then
+        isstr_flag = true
+    end
+
+    return isstr_flag
+end
+
 -- count capture numbers
-local function y(l, regex, repl, regex_op)
+local function y(l, regex, regex_op)
     if not l then
         return 0
     end
 
     regex_op = regex_op or "jo"
 
-    local nl, n, err = ngx.re.gsub(l, regex, repl, regex_op)
-    if not nl then
-        return nl, 0
+    local around_rex = [=[[([^\s]+]=] .. regex .. [=[[^\s]+)]=]
+    local m, err = ngx.re.match(l, around_rex, regex_op)
+
+    local count = 0
+    if not m then
+        return 0
     end
 
-    return nl, n
+    for _, _m in ipairs(m) do
+        if not isstr(_m) then
+            count = count + 1
+        end
+    end
+
+    return count
 end
 
 local function pretty(code, print_flag)
@@ -65,7 +89,7 @@ local function pretty(code, print_flag)
 
         -- replace all whitespaces inside the string with one space
         do
-            local nl = ngx.re.gsub(l, [[\s+]], " ", "jo")
+            local nl = ngx.re.gsub(l, [=[(?=\s*["'\[][^\s])\s+(?['"\]])]=], " ", "jo")
             l = nl or l
         end
 
@@ -104,6 +128,10 @@ local function pretty(code, print_flag)
 
             open_level_flag = open_level_flag
                 or ngx.re.match(l, [=[\bfunction\s*\([^\)]*\)$]=], "jio")
+
+            if open_level_flag then
+                open_level_flag = true
+            end
         end
 
         -- close the level; change both current and next indentation
@@ -120,6 +148,10 @@ local function pretty(code, print_flag)
 
             close_level_flag = close_level_flag
                 or ngx.re.match(l, [=[^else(if)?\b/ && /\bend$]=], "jio")
+
+            if close_level_flag then
+                close_level_flag = true
+            end
         end
 
         -- keep the level; decrease the current indentation; keep the next one
@@ -127,6 +159,10 @@ local function pretty(code, print_flag)
         do
             keep_level_flag = ngx.re.match(l, [[^else\b]], "jio")
                 or ngx.re.match(l, [[^elseif\b]], "jio")
+
+            if keep_level_flag then
+                keep_level_flag = true
+            end
         end
 
         if open_level_flag then
@@ -143,16 +179,16 @@ local function pretty(code, print_flag)
         local brackets
         do
             local lb, rb
-            l, lb = y(l, [[\(]], "")
-            l, rb = y(l, [[\)]], "")
+            lb = y(l, [[\(]])
+            rb = y(l, [[\)(?\b)]])
             brackets = lb - rb
         end
         -- capture unbalanced curly brackets
         local curly
         do
             local lc, rc
-            l, lc = y(l, [[\{]], "")
-            l, rc = y(l, [[\}]], "")
+            lc = y(l, [[\{]])
+            rc = y(l, [[\}(?\b)]])
             curly = lc - rc
         end
 
@@ -216,11 +252,14 @@ _M.pretty = pretty
 
 -- call from command line
 do
-    -- When called from the command line, debug.getinfo(3).name is nil
-    if not debug.getinfo(4).name then
-        local narg = #arg
+    -- When called from the command line, ({...})[1] is nil
+    local narg = #arg
+    if not ({...})[1] then
         local filename = arg[1]
-        local fh = io.open(filename, "r")
+        local fh, err = io.open(filename, "r")
+        if err then
+            return
+        end
         io.input(fh)
         local code = io.read("*a")
         pretty(code, true)
