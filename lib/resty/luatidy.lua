@@ -245,7 +245,11 @@ local function pretty(code, print_flag)
         end
     end
 
-    return table.concat(tidycode, "\n"), table.concat(warning, "\n")
+    local warning_str
+    if warning_len > 0 then
+        warning_str = table.concat(warning, "\n")
+    end
+    return table.concat(tidycode, "\n"), warning_str
 end
 
 _M.pretty = pretty
@@ -253,7 +257,6 @@ _M.pretty = pretty
 -- call from command line
 do
     -- When called from the command line, ({...})[1] is nil
-    local narg = #arg
     if not ({...})[1] then
         local filename = arg[1]
         local fh, err = io.open(filename, "r")
